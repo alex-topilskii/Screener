@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Competency Matrix Screener</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <!-- js-yaml для парсинга -->
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+  <style>
+    :root {
+      --bg: #0b0f14; --panel:#111820; --muted:#8aa0b6; --text:#eaf2f9; --accent:#6dd3fb; --yes:#2ecc71; --no:#ff5c5c; --unk:#f1c40f;
+    }
+    html,body { height:100%; margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background: linear-gradient(180deg,#0b0f14,#0d1218 40%,#0b0f14); color:var(--text);}
+    .wrap { max-width:1100px; margin:0 auto; padding:20px; }
+    header { display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+    .brand { display:flex; gap:10px; align-items:center; }
+    .brand .dot { width:10px; height:10px; border-radius:50%; background:var(--accent); box-shadow:0 0 18px var(--accent);}
+    textarea { width:100%; min-height:170px; background:#0e151d; color:var(--text); border:1px solid #1f2937; border-radius:12px; padding:12px; resize:vertical; }
+    .controls { display:flex; gap:8px; flex-wrap:wrap; }
+    button, .ghost {
+      background:#15202b; color:var(--text); border:1px solid #223044; padding:10px 14px; border-radius:12px; cursor:pointer;
+    }
+    button:hover { border-color:#2e405b; }
+    .grid { display:grid; gap:16px; grid-template-columns: 1fr; }
+    @media(min-width:900px){ .grid{ grid-template-columns: 1.1fr .9fr; } }
+    .card {
+      user-select:none; position:relative; border-radius:20px; padding:22px; background: radial-gradient(1200px 400px at 20% -20%, rgba(109,211,251,.08), transparent 40%), #0f1620;
+      border:1px solid #1f2a3a; box-shadow: 0 20px 50px rgba(0,0,0,.35);
+      transition: transform .15s ease, box-shadow .15s ease;
+      min-height: 220px; display:flex; flex-direction:column; gap:12px;
+    }
+    .badge { display:inline-flex; align-items:center; gap:8px; background:#121c27; border:1px solid #243243; padding:6px 10px; border-radius:999px; font-size:12px; color:#b9c8d8;}
+    .row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+    .muted { color:var(--muted); font-size:13px;}
+    .big { font-size:20px; line-height:1.35; letter-spacing:.2px;}
+    .pill { padding:4px 8px; border-radius:999px; background:#13202b; border:1px solid #253445; font-size:12px; color:#bcd0e2;}
+    .actions { display:flex; gap:10px; margin-top:auto; }
+    .actions .a { flex:1; padding:14px 12px; border-radius:14px; border:1px solid #223044; background:#121a23; cursor:pointer; text-align:center;}
+    .a-yes { border-color: rgba(46,204,113,.4); }
+    .a-no { border-color: rgba(255,92,92,.35); }
+    .a-unk { border-color: rgba(241,196,15,.45); }
+    .a-yes:hover { background: rgba(46,204,113,.12); }
+    .a-no:hover { background: rgba(255,92,92,.10); }
+    .a-unk:hover { background: rgba(241,196,15,.10); }
+    .hint { font-size:12px; color:#92a8bf; }
+    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; background:#0c1116; border:1px solid #202a36; border-bottom-width:2px; padding:2px 6px; border-radius:6px; }
+    .progress { height:8px; background:#121a23; border-radius:999px; overflow:hidden; border:1px solid #223044;}
+    .progress>div { height:100%; background: linear-gradient(90deg, var(--accent), #9ee8ff); width:0%; transition:width .2s ease; }
+    table { width:100%; border-collapse: collapse; font-size:14px; }
+    th, td { border-bottom:1px solid #1c2735; padding:10px; text-align:left; }
+    th { color:#cfe2f3; font-weight:600; }
+    td.perc { font-variant-numeric: tabular-nums; }
+    .legend { display:flex; gap:10px; flex-wrap:wrap; }
+    .legend .dot { width:10px; height:10px; border-radius:50%; }
+    .fade { opacity:.65; }
+    .small { font-size:12px; }
+    .hidden { display:none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="dot"></div>
+        <h1 style="margin:0;font-size:18px">Competency Matrix Screener</h1>
+      </div>
+      <div class="controls">
+        <label class="ghost">
+          Загрузить YAML
+          <input id="file" type="file" accept=".yml,.yaml,.txt" class="hidden" />
+        </label>
+        <button id="load">Загрузить из текста</button>
+        <button id="use-sample" title="Подставить пример">Пример</button>
+        <button id="reset" title="Сбросить прогресс">Сброс</button>
+      </div>
+    </header>
+
+    <div class="grid" style="margin-top:14px">
+      <section>
+        <div class="card" style="gap:16px">
+          <div class="row">
+            <div class="badge">Вставь YAML матрицы</div>
+            <div class="muted">Уровни, домены, компетенции/тезисы</div>
+          </div>
+          <textarea id="yaml" placeholder="Вставьте YAML сюда..."></textarea>
+          <div class="row" style="justify-content:space-between">
+            <div class="legend">
+              <span class="muted small">Подсказки:</span>
+              <span class="small"><span class="kbd">→</span> да</span>
+              <span class="small"><span class="kbd">←</span> нет (закончить домен)</span>
+              <span class="small"><span class="kbd">↑</span> unknown</span>
+            </div>
+            <div class="muted small">Ключи в requirements: <code>level</code>, <code>level+</code>, <code>l1..l2</code>, <code>l1, l2</code>. Значение — строка или массив строк.</div>
+          </div>
+        </div>
+
+        <div id="work" class="card" style="margin-top:16px">
+          <div class="row">
+            <div class="badge" id="domainBadge">Домен</div>
+            <span class="pill" id="levelPill">уровень</span>
+            <span class="muted" id="counter"></span>
+          </div>
+          <div class="big" id="thesis">Здесь появятся карточки после загрузки YAML</div>
+          <div class="progress" title="Прогресс по домену" aria-label="progress"><div id="bar"></div></div>
+          <div class="actions">
+            <div class="a a-no" id="btn-no">← Нет</div>
+            <div class="a a-unk" id="btn-unk">↑ Unknown</div>
+            <div class="a a-yes" id="btn-yes">→ Да</div>
+          </div>
+          <div class="row fade small">
+            <div>Горячие клавиши: <span class="kbd">←</span> / <span class="kbd">↑</span> / <span class="kbd">→</span></div>
+          </div>
+        </div>
+      </section>
+
+      <aside>
+        <div class="card">
+          <div class="row"><div class="badge">Результаты по домену</div></div>
+          <div id="results">Пока пусто.</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    // ---------- схема данных ----------
+    /*
+    YAML ожидается в виде:
+    levels: [junior, middle, senior, staff, principle]
+    domains:
+      - name: Soft skills
+        competencies:
+          - id: communication
+            description: ...
+            requirements:
+              junior: "умеет общаться"
+              middle, senior:
+                - "ведёт встречи"
+                - "даёт обратную связь"
+              staff+: "влияет на несколько команд"
+          - id: leadership
+            requirements:
+              senior..principle:
+                - "менторит"
+                - "строит стратегию"
+    */
+
+    // ---------- состояние ----------
+    let state = {
+      spec: null,
+      domains: [],        // [{name, items: [{levelIndex, level, text, compId}], pointer, answers:[]}]
+      levels: [],
+      curDomain: 0,
+      curIndex: 0
+    };
+
+    const el = (id) => document.getElementById(id);
+
+    // ---------- загрузка YAML ----------
+    el('use-sample').addEventListener('click', () => {
+      el('yaml').value = sampleYAML();
+    });
+
+    el('file').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const txt = await file.text();
+      el('yaml').value = txt;
+    });
+
+    el('load').addEventListener('click', () => {
+      try {
+        const spec = jsyaml.load(el('yaml').value);
+        bootstrap(spec);
+      } catch (e) {
+        alert('Ошибка парсинга YAML: ' + e.message);
+      }
+    });
+
+    el('reset').addEventListener('click', () => {
+      if (confirm('Сбросить прогресс?')) location.reload();
+    });
+
+    // ---------- парсинг и разворачивание требований ----------
+    function bootstrap(spec) {
+      if (!spec || !Array.isArray(spec.levels) || !Array.isArray(spec.domains)) {
+        alert('Нужны поля: levels: [...], domains: [...]');
+        return;
+      }
+      const levels = spec.levels.map(s => String(s));
+      const levelIndex = Object.fromEntries(levels.map((l,i)=>[l,i]));
+
+      function expandReqKey(key) {
+        // Возвращает массив индексов уровней, на которые распространяется ключ.
+        key = String(key).trim();
+        // comma list
+        if (key.includes(',')) {
+          return key.split(',').map(s=>s.trim()).map(k => {
+            if (k.endsWith('+')) {
+              const base = k.replace(/\+$/,'');
+              const idx = levelIndex[base];
+              if (idx == null) throw new Error('Неизвестный уровень: '+base);
+              return Array.from({length: levels.length-idx}, (_,n)=>idx+n);
+            } else {
+              const idx = levelIndex[k];
+              if (idx == null) throw new Error('Неизвестный уровень: '+k);
+              return [idx];
+            }
+          }).flat();
+        }
+        // range l1..l2
+        if (key.includes('..')) {
+          const [a,b] = key.split('..').map(s=>s.trim());
+          const ia = levelIndex[a], ib = levelIndex[b];
+          if (ia==null || ib==null) throw new Error('Диапазон использует неизвестный уровень: '+key);
+          if (ia>ib) throw new Error('Диапазон должен быть возрастающим: '+key);
+          return Array.from({length: ib-ia+1}, (_,n)=>ia+n);
+        }
+        // suffix +
+        if (key.endsWith('+')) {
+          const base = key.slice(0,-1);
+          const idx = levelIndex[base];
+          if (idx == null) throw new Error('Неизвестный уровень: '+base);
+          return Array.from({length: levels.length-idx}, (_,n)=>idx+n);
+        }
+        // single
+        const idx = levelIndex[key];
+        if (idx == null) throw new Error('Неизвестный уровень: '+key);
+        return [idx];
+      }
+
+      function toArray(val) { return Array.isArray(val) ? val : [val]; }
+
+      // Собрать домены -> список "тезисов" по возрастанию уровней
+      const domains = spec.domains.map(dom => {
+        const items = [];
+        (dom.competencies || []).forEach(comp => {
+          const req = comp.requirements || {};
+          for (const [key, value] of Object.entries(req)) {
+            const indices = expandReqKey(key);
+            const texts = toArray(value).map(v=>String(v));
+            indices.forEach(idx => {
+              texts.forEach(text => {
+                items.push({
+                  levelIndex: idx,
+                  level: levels[idx],
+                  text,
+                  compId: comp.id || null
+                });
+              });
+            });
+          }
+        });
+        // сортировка: сначала младшие уровни, потом как в YAML
+        items.sort((a,b)=> a.levelIndex - b.levelIndex);
+        return {
+          name: dom.name || 'Без имени',
+          items,
+          pointer: 0,
+          answers: [] // [{levelIndex, level, text, answer: 'yes'|'no'|'unknown'}]
+        };
+      });
+
+      state = { spec, domains, levels, curDomain: 0, curIndex: 0 };
+      if (domains.every(d => d.items.length===0)) {
+        alert('В доменах нет тезисов (requirements).');
+        return;
+      }
+      // Показать первую карточку
+      render();
+    }
+
+    // ---------- навигация / ответы ----------
+    function current() {
+      const d = state.domains[state.curDomain];
+      if (!d) return null;
+      const item = d.items[d.pointer];
+      return { domain: d, item };
+    }
+
+    function answer(kind) {
+      const ctx = current();
+      if (!ctx) return;
+      const {domain, item} = ctx;
+      if (!item) { nextDomain(); return; }
+
+      domain.answers.push({...item, answer: kind});
+
+      if (kind === 'no') {
+        // лево — завершаем домен (оставшиеся считаем неотвеченными/несоответствием)
+        nextDomain();
+      } else {
+        // yes/unknown — двигаемся к следующему тезису
+        domain.pointer++;
+        if (domain.pointer >= domain.items.length) {
+          nextDomain();
+        }
+      }
+      render();
+    }
+
+    function nextDomain() {
+      state.curDomain++;
+      state.curIndex = 0;
+    }
+
+    // ---------- вычисление процентов ----------
+    // Для уровня L считаем все тезисы, чей минимальный уровень <= L.
+    // unknown исключаем из знаменателя; если ни одного ответа — «—».
+    function computeDomainPercents(domain, levels) {
+      const upToLevel = (Lidx) => domain.items.filter(it => it.levelIndex <= Lidx);
+      function percentFor(Lidx) {
+        const considered = upToLevel(Lidx);
+        // сопоставим ответы только на те тезисы, которые попали в considered
+        const ansMap = new Map();
+        domain.answers.forEach((a, i)=> {
+          const key = a.levelIndex + '|' + a.text;
+          ansMap.set(key, a);
+        });
+        const answered = considered.map(it => ansMap.get(it.levelIndex + '|' + it.text)).filter(Boolean);
+        const known = answered.filter(a => a.answer !== 'unknown');
+        if (known.length === 0) return null;
+        const yes = known.filter(a => a.answer === 'yes').length;
+        return Math.round((yes / known.length) * 100);
+      }
+      return levels.map((_, idx) => percentFor(idx));
+    }
+
+    // ---------- отрисовка ----------
+    function render() {
+      const ctx = current();
+      const resultsHost = el('results');
+
+      // карточка
+      if (!ctx) {
+        // Всё пройдено — сводная таблица
+        resultsHost.innerHTML = renderAllResults();
+        el('domainBadge').textContent = 'Готово';
+        el('levelPill').textContent = '—';
+        el('counter').textContent = '';
+        el('thesis').innerHTML = 'Опрошены все домены. В таблице справа — соответствие по уровням.';
+        el('bar').style.width = '100%';
+        document.title = 'Готово — Competency Matrix Screener';
+        return;
+      }
+
+      const {domain, item} = ctx;
+
+      el('domainBadge').textContent = domain.name;
+      const total = domain.items.length;
+      const done = Math.min(domain.pointer, total);
+      const pct = total ? Math.round(100 * done / total) : 0;
+      el('bar').style.width = pct + '%';
+
+      if (!item) {
+        el('levelPill').textContent = '—';
+        el('counter').textContent = `${done}/${total}`;
+        el('thesis').textContent = 'Домен завершён.';
+      } else {
+        el('levelPill').textContent = item.level;
+        el('counter').textContent = `${domain.pointer+1}/${total}`;
+        el('thesis').textContent = item.text;
+      }
+
+      // результаты справа для текущего домена
+      const percents = computeDomainPercents(domain, state.levels);
+      resultsHost.innerHTML = renderDomainTable(domain, percents);
+    }
+
+    function renderDomainTable(domain, percents) {
+      const cols = state.levels.map((lvl,i) => `<th>${lvl}</th>`).join('');
+      const vals = percents.map(p => `<td class="perc">${p==null ? '—' : (p+'%')}</td>`).join('');
+      const answered = domain.answers.length;
+      const total = domain.items.length;
+      return `
+        <div class="muted small" style="margin-bottom:8px">${domain.name}</div>
+        <table>
+          <thead><tr>${cols}</tr></thead>
+          <tbody><tr>${vals}</tr></tbody>
+        </table>
+        <div class="row fade small" style="margin-top:8px">
+          <div>Отвечено: ${answered}/${total}. <span class="muted">Unknown не учитываются в процентах.</span></div>
+        </div>
+      `;
+    }
+
+    function renderAllResults() {
+      let html = '';
+      for (const d of state.domains) {
+        const perc = computeDomainPercents(d, state.levels);
+        html += renderDomainTable(d, perc);
+      }
+      return html;
+    }
+
+    // ---------- управление (кнопки/клавиши/свайпы) ----------
+    el('btn-yes').addEventListener('click', ()=>answer('yes'));
+    el('btn-no').addEventListener('click', ()=>answer('no'));
+    el('btn-unk').addEventListener('click', ()=>answer('unknown'));
+
+    window.addEventListener('keydown', (e)=>{
+      if (e.key === 'ArrowRight') answer('yes');
+      else if (e.key === 'ArrowLeft') answer('no');
+      else if (e.key === 'ArrowUp') answer('unknown');
+    });
+
+    // Простые свайпы мышью/тачем (без зависимостей)
+    (function enableSwipe() {
+      const box = document.getElementById('work');
+      let startX=0,startY=0,tracking=false;
+
+      const onStart = (x,y)=>{ startX=x; startY=y; tracking=true; box.style.transform='scale(1.01)'; };
+      const onMove = (x,y)=>{
+        if(!tracking) return;
+        const dx=x-startX, dy=y-startY;
+        const tilt = Math.max(-10, Math.min(10, dx/8));
+        box.style.transform=`translate(${dx/10}px, ${dy/18}px) rotate(${tilt}deg)`;
+      };
+      const onEnd = (x,y)=>{
+        if(!tracking) return; tracking=false;
+        const dx=x-startX, dy=y-startY;
+        box.style.transform='';
+        const absX=Math.abs(dx), absY=Math.abs(dy);
+        const TH=60;
+        if (absX>absY && absX>TH) {
+          answer(dx>0?'yes':'no');
+        } else if (absY>TH && dy<0) {
+          answer('unknown');
+        }
+      };
+
+      box.addEventListener('mousedown', e=>onStart(e.clientX,e.clientY));
+      window.addEventListener('mousemove', e=>onMove(e.clientX,e.clientY));
+      window.addEventListener('mouseup', e=>onEnd(e.clientX,e.clientY));
+      box.addEventListener('touchstart', e=>{ const t=e.changedTouches[0]; onStart(t.clientX,t.clientY); }, {passive:true});
+      box.addEventListener('touchmove', e=>{ const t=e.changedTouches[0]; onMove(t.clientX,t.clientY); }, {passive:true});
+      box.addEventListener('touchend', e=>{ const t=e.changedTouches[0]; onEnd(t.clientX,t.clientY); }, {passive:true});
+    })();
+
+    // ---------- пример YAML ----------
+    function sampleYAML() {
+return `levels:
+  - junior
+  - middle
+  - senior
+  - staff
+  - principle
+
+domains:
+  - name: Soft skills
+    competencies:
+      - id: communication
+        description: Коммуникация
+        requirements:
+          junior:
+            - Чётко формулирует мысли в устной форме
+            - Пишет понятные сообщения в чате
+          middle, senior:
+            - Аргументирует технические решения в команде
+          staff+:
+            - Фасилитирует кросс-командные встречи
+      - id: leadership
+        requirements:
+          senior..principle:
+            - Наставничество для нескольких разработчиков
+            - Инициирует улучшения процессов
+
+  - name: Hard skills
+    competencies:
+      - id: android_basics
+        requirements:
+          junior:
+            - Понимает жизненный цикл Activity/Fragment
+          middle:
+            - Применяет MVVM/MVI на практике
+          senior:
+            - Проектирует архитектуру модулей
+          staff+:
+            - Определяет технические стандарты в организации
+      - id: performance
+        requirements:
+          senior:
+            - Проводит профилирование и оптимизации
+          staff, principle:
+            - Ведёт performance-инициативы на уровне нескольких команд
+`;
+    }
+  </script>
+</body>
+</html>
