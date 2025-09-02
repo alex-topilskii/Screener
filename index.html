@@ -1,241 +1,269 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8" />
-  <title>Competency Matrix Screener</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+  <meta charset="UTF-8">
+  <title>Матрица компетенций</title>
   <style>
-    :root {
-      --bg: #0b0f14; --panel:#111820; --muted:#8aa0b6; --text:#eaf2f9; --accent:#6dd3fb;
-    }
-    html,body { height:100%; margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background: linear-gradient(180deg,#0b0f14,#0d1218 40%,#0b0f14); color:var(--text);}
-    .wrap { max-width:1100px; margin:0 auto; padding:20px; }
-    header { display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
-    .brand { display:flex; gap:10px; align-items:center; }
-    .brand .dot { width:10px; height:10px; border-radius:50%; background:var(--accent); box-shadow:0 0 18px var(--accent);}
-    textarea { width:100%; min-height:170px; background:#0e151d; color:var(--text); border:1px solid #1f2937; border-radius:12px; padding:12px; resize:vertical; }
-    .controls { display:flex; gap:8px; flex-wrap:wrap; }
-    button, .ghost {
-      background:#15202b; color:var(--text); border:1px solid #223044; padding:10px 14px; border-radius:12px; cursor:pointer;
-    }
-    .grid { display:grid; gap:16px; grid-template-columns: 1fr; }
-    @media(min-width:900px){ .grid{ grid-template-columns: 1.1fr .9fr; } }
-    .card {
-      user-select:none; border-radius:20px; padding:22px; background:#0f1620;
-      border:1px solid #1f2a3a; box-shadow: 0 20px 50px rgba(0,0,0,.35);
-      transition: transform .15s ease; min-height: 220px; display:flex; flex-direction:column; gap:12px;
-    }
-    .badge { display:inline-flex; align-items:center; gap:8px; background:#121c27; border:1px solid #243243; padding:6px 10px; border-radius:999px; font-size:12px; color:#b9c8d8;}
-    .row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
-    .muted { color:var(--muted); font-size:13px;}
-    .big { font-size:20px; line-height:1.35;}
-    .pill { padding:4px 8px; border-radius:999px; background:#13202b; border:1px solid #253445; font-size:12px; color:#bcd0e2;}
-    .actions { display:flex; gap:10px; margin-top:auto; }
-    .actions .a { flex:1; padding:14px 12px; border-radius:14px; border:1px solid #223044; background:#121a23; cursor:pointer; text-align:center;}
-    .a-yes { border-color: rgba(46,204,113,.4); }
-    .a-no { border-color: rgba(255,92,92,.35); }
-    .a-unk { border-color: rgba(241,196,15,.45); }
-    .progress { height:8px; background:#121a23; border-radius:999px; overflow:hidden; border:1px solid #223044;}
-    .progress>div { height:100%; background: linear-gradient(90deg, var(--accent), #9ee8ff); width:0%; transition:width .2s ease; }
-    table { width:100%; border-collapse: collapse; font-size:14px; }
-    th, td { border-bottom:1px solid #1c2735; padding:10px; text-align:left; }
-    th { color:#cfe2f3; font-weight:600; }
-    td.perc { font-variant-numeric: tabular-nums; }
-    .small { font-size:12px; }
-    .hidden { display:none; }
+    body { font-family: sans-serif; display: flex; margin: 0; height: 100vh; }
+    main { flex: 1; display: flex; justify-content: center; align-items: center; }
+    aside { width: 350px; border-left: 1px solid #ccc; padding: 12px; overflow:auto }
+    .card { width: 300px; padding: 20px; border: 1px solid #ccc; border-radius: 12px;
+            background: white; box-shadow: 0 4px 6px rgba(0,0,0,.1); text-align:center; }
+    .row { display: flex; justify-content: center; margin-top: 12px; gap: 8px; flex-wrap:wrap; }
+    button { padding: 6px 12px; border-radius: 6px; cursor: pointer; border: none; }
+    .btn-yes { background: #4caf50; color:white }
+    .btn-no { background: #f44336; color:white }
+    .btn-unk { background: #2196f3; color:white }
+    .badge { background: #eee; border-radius: 8px; padding: 2px 8px; font-size: 12px; }
+    table { border-collapse: collapse; margin-top: 20px; width: 100%; font-size: 12px; }
+    th, td { border: 1px solid #ccc; padding: 4px; text-align: center; }
+    .yes { background: #c8e6c9; }  /* зелёный */
+    .no { background: #ffcdd2; }   /* красный */
+    .unknown { background: #bbdefb; } /* синий */
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div class="brand">
-        <div class="dot"></div>
-        <h1 style="margin:0;font-size:18px">Competency Matrix Screener</h1>
-      </div>
-      <div class="controls">
-        <label class="ghost">Загрузить YAML
-          <input id="file" type="file" accept=".yml,.yaml,.txt" class="hidden" />
-        </label>
-        <button id="load">Загрузить из текста</button>
-        <button id="use-sample">Пример</button>
-        <button id="reset">Сброс</button>
-      </div>
-    </header>
 
-    <div class="grid" style="margin-top:14px">
-      <section>
-        <div class="card" style="gap:16px">
-          <div class="row">
-            <div class="badge">Вставь YAML матрицы</div>
-          </div>
-          <textarea id="yaml" placeholder="Вставьте YAML сюда..."></textarea>
-        </div>
+<main>
+  <div id="card-container"></div>
+</main>
 
-        <div id="work" class="card" style="margin-top:16px">
-          <div class="row">
-            <div class="badge" id="domainBadge">Домен</div>
-            <span class="pill" id="levelPill">уровень</span>
-            <span class="muted" id="counter"></span>
-          </div>
-          <div class="big" id="thesis">Здесь появятся карточки после загрузки YAML</div>
-          <div class="progress"><div id="bar"></div></div>
-          <div class="actions">
-            <div class="a a-no" id="btn-no">← Нет</div>
-            <div class="a a-unk" id="btn-unk">↑ Unknown</div>
-            <div class="a a-yes" id="btn-yes">→ Да</div>
-          </div>
-        </div>
-      </section>
-
-      <aside>
-        <div class="card">
-          <div class="row"><div class="badge">Результаты</div></div>
-          <div id="results">Пока пусто.</div>
-          <div class="row" style="margin-top:12px; gap:8px; flex-wrap:wrap">
-            <button id="btn-export">Текст</button>
-            <button id="btn-csv">CSV</button>
-            <button id="btn-print">Печать</button>
-          </div>
-        </div>
-      </aside>
+<aside>
+  <div class="card">
+    <div class="row"><div class="badge">Результаты</div></div>
+    <div id="results">Пока пусто.</div>
+    <div class="row" style="margin-top:12px;">
+      <button id="btn-export">Текст</button>
+      <button id="btn-csv">CSV</button>
+      <button id="btn-print">Печать</button>
     </div>
+    <div id="competency-table"></div>
   </div>
+</aside>
 
-  <script>
-    let state = { spec:null, domains:[], levels:[], curDomain:0 };
-
-    const el = (id) => document.getElementById(id);
-
-    el('use-sample').addEventListener('click', () => { el('yaml').value = sampleYAML(); });
-    el('file').addEventListener('change', async (e) => {
-      const file = e.target.files[0]; if (!file) return;
-      el('yaml').value = await file.text();
-    });
-    el('load').addEventListener('click', () => { try { bootstrap(jsyaml.load(el('yaml').value)); } catch(e) { alert('Ошибка: '+e.message);} });
-    el('reset').addEventListener('click', () => { if(confirm('Сбросить?')) location.reload(); });
-
-    function bootstrap(spec) {
-      if (!spec || !Array.isArray(spec.levels) || !Array.isArray(spec.domains)) return alert('Нужны levels и domains');
-      const levels = spec.levels.map(String);
-      const levelIndex = Object.fromEntries(levels.map((l,i)=>[l,i]));
-      function expandKey(key) {
-        key=String(key).trim();
-        if (key.includes(',')) return key.split(',').map(k=>expandKey(k.trim())).flat();
-        if (key.includes('..')) {
-          const [a,b]=key.split('..').map(s=>s.trim()), ia=levelIndex[a], ib=levelIndex[b];
-          return Array.from({length:ib-ia+1},(_,n)=>ia+n);
-        }
-        if (key.endsWith('+')) { const base=key.slice(0,-1), idx=levelIndex[base]; return Array.from({length:levels.length-idx},(_,n)=>idx+n); }
-        return [levelIndex[key]];
-      }
-      function toArr(v){return Array.isArray(v)?v:[v];}
-      const domains = spec.domains.map(dom=>{
-        const items=[]; (dom.competencies||[]).forEach(comp=>{
-          for(const [k,v] of Object.entries(comp.requirements||{})){
-            expandKey(k).forEach(idx=>{
-              toArr(v).forEach(txt=> items.push({levelIndex:idx, level:levels[idx], text:String(txt), compId:comp.id||""}));
-            });
-          }
-        });
-        items.sort((a,b)=>a.levelIndex-b.levelIndex);
-        return {name:dom.name||'Без имени', items, pointer:0, answers:[]};
-      });
-      state={spec, domains, levels, curDomain:0};
-      render();
-    }
-
-    function current(){ const d=state.domains[state.curDomain]; return d?{domain:d,item:d.items[d.pointer]}:null; }
-    function answer(kind){ const ctx=current(); if(!ctx) return; const {domain,item}=ctx; domain.answers.push({...item,answer:kind}); if(kind==='no'){nextDomain();} else {domain.pointer++; if(domain.pointer>=domain.items.length) nextDomain();} render();}
-    function nextDomain(){state.curDomain++;}
-
-    function computeDomainPercents(domain, levels){
-      const upTo=L=>domain.items.filter(it=>it.levelIndex<=L);
-      return levels.map((_,L)=>{
-        const considered=upTo(L), ansMap=new Map(domain.answers.map(a=>[a.levelIndex+'|'+a.text,a]));
-        const answered=considered.map(it=>ansMap.get(it.levelIndex+'|'+it.text)).filter(Boolean);
-        const known=answered.filter(a=>a.answer!=='unknown'); if(!known.length) return null;
-        return Math.round(100*known.filter(a=>a.answer==='yes').length/known.length);
-      });
-    }
-
-    function render(){
-      const ctx=current(), resultsHost=el('results');
-      if(!ctx){ resultsHost.innerHTML=renderAllResults(); el('domainBadge').textContent='Готово'; el('thesis').textContent='Все домены пройдены'; return;}
-      const {domain,item}=ctx, total=domain.items.length, done=domain.pointer;
-      el('domainBadge').textContent=domain.name;
-      el('levelPill').textContent=item?item.level:'—';
-      el('counter').textContent=`${done+1}/${total}`;
-      el('thesis').textContent=item?item.text:'Домен завершён.';
-      el('bar').style.width=Math.round(100*done/total)+'%';
-      resultsHost.innerHTML=renderDomainTable(domain, computeDomainPercents(domain,state.levels));
-    }
-    function renderDomainTable(d, perc){
-      const cols=state.levels.map(l=>`<th>${l}</th>`).join('');
-      const vals=perc.map(p=>`<td class="perc">${p==null?'—':p+'%'}</td>`).join('');
-      return `<div class="small">${d.name}</div><table><thead><tr>${cols}</tr></thead><tbody><tr>${vals}</tr></tbody></table>`;
-    }
-    function renderAllResults(){ return state.domains.map(d=>renderDomainTable(d,computeDomainPercents(d,state.levels))).join('<br/>'); }
-
-    el('btn-yes').onclick=()=>answer('yes');
-    el('btn-no').onclick=()=>answer('no');
-    el('btn-unk').onclick=()=>answer('unknown');
-    window.addEventListener('keydown',e=>{if(e.key==='ArrowRight')answer('yes');if(e.key==='ArrowLeft')answer('no');if(e.key==='ArrowUp')answer('unknown');});
-
-    // ------- Экспорт -------
-    function exportAsText(){
-      return state.domains.map(d=>{
-        const perc=computeDomainPercents(d,state.levels);
-        return `Домен: ${d.name}\n`+state.levels.map((lvl,i)=>`  ${lvl}: ${perc[i]==null?'—':perc[i]+'%'}`).join('\n');
-      }).join('\n\n');
-    }
-    function exportAsCSV(){
-      const rows=[["domain","competency_id","level","requirement","answer"]];
-      for(const d of state.domains){
-        d.items.forEach(it=>{
-          const ans=d.answers.find(a=>a.levelIndex===it.levelIndex && a.text===it.text);
-          rows.push([d.name,it.compId,it.level,'"'+it.text.replace(/"/g,'""')+'"',ans?ans.answer:""]);
-        });
-      }
-      return rows.map(r=>r.join(",")).join("\n");
-    }
-    el('btn-export').onclick=async()=>{const txt=exportAsText();try{await navigator.clipboard.writeText(txt);alert("Скопировано:\n\n"+txt);}catch{alert("Скопируйте:\n\n"+txt);}};
-    el('btn-csv').onclick=()=>{const csv=exportAsCSV();const blob=new Blob([csv],{type:"text/csv"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="results.csv";a.click();URL.revokeObjectURL(url);};
-    el('btn-print').onclick=()=>{const txt=exportAsText();const w=window.open();w.document.write('<pre>'+txt+'</pre>');w.print();};
-
-    function sampleYAML(){return `levels:
-  - junior
-  - middle
-  - senior
-  - staff
-  - principle
-
+<script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+<script>
+// ==== пример YAML ====
+const yamlText = `
 domains:
-  - name: Soft skills
-    competencies:
-      - id: communication
-        description: Коммуникация
-        requirements:
-          junior:
-            - Чётко формулирует мысли в устной форме
-          middle, senior:
-            - Аргументирует технические решения
-          staff+:
-            - Фасилитирует встречи
-      - id: leadership
-        requirements:
-          senior..principle:
-            - Наставничество
-            - Улучшение процессов
   - name: Hard skills
     competencies:
       - id: android_basics
-        requirements:
-          junior: Понимает жизненный цикл Activity/Fragment
-          middle: Применяет MVVM/MVI
-          senior: Проектирует архитектуру
-          staff+: Определяет стандарты
-`; }
-  </script>
+        levels:
+          junior:
+            skills:
+              - Knowledge in Android SDK
+              - Kotlin
+              - Constraint Layout
+          middle:
+            skills:
+              - Good knowledge in Android SDK
+              - Kotlin
+              - Constraint Layout
+              - Coroutines
+              - MVI
+              - MVVM
+          senior:
+            skills:
+              - Project architecture design
+              - Code review
+  - name: Soft skills
+    competencies:
+      - id: communication
+        levels:
+          junior:
+            skills:
+              - Clear verbal communication
+          middle:
+            skills:
+              - Can argue technical decisions
+`;
+
+// ==== парсинг YAML ====
+const data = jsyaml.load(yamlText);
+
+// ==== состояние ====
+const state = {
+  domains: [],
+  currentDomain: 0,
+  currentComp: 0,
+  currentLevelIndex: 0,
+  currentSkillIndex: 0,
+  levels: []
+};
+
+// ==== подготовка структуры ====
+function prepare() {
+  // соберём список уровней
+  const levelSet = new Set();
+  data.domains.forEach(d => {
+    d.competencies.forEach(c => {
+      Object.keys(c.levels).forEach(lvl => levelSet.add(lvl));
+    });
+  });
+  state.levels = Array.from(levelSet);
+
+  // разворачиваем items
+  data.domains.forEach(d => {
+    d.items = [];
+    d.competencies.forEach(c => {
+      for (const [lvl, obj] of Object.entries(c.levels)) {
+        obj.skills.forEach(skill => {
+          d.items.push({
+            compId: c.id,
+            level: lvl,
+            text: skill
+          });
+        });
+      }
+    });
+    d.answers = [];
+  });
+  state.domains = data.domains;
+}
+
+// ==== карточки ====
+function showCard() {
+  const d = state.domains[state.currentDomain];
+  if (!d) { renderResults(); return; }
+  const item = d.items[state.currentSkillIndex];
+  if (!item) { nextDomain(); return; }
+
+  document.getElementById("card-container").innerHTML = `
+    <div class="card">
+      <div class="badge">${d.name} – ${item.level}</div>
+      <p>${item.text}</p>
+      <div class="row">
+        <button class="btn-no" onclick="answer('no')">Нет</button>
+        <button class="btn-unk" onclick="answer('unknown')">Не знаю</button>
+        <button class="btn-yes" onclick="answer('yes')">Да</button>
+      </div>
+    </div>
+  `;
+}
+
+function answer(ans) {
+  const d = state.domains[state.currentDomain];
+  const item = d.items[state.currentSkillIndex];
+  d.answers.push({ ...item, answer: ans });
+  state.currentSkillIndex++;
+  showCard();
+}
+
+function nextDomain() {
+  state.currentDomain++;
+  state.currentSkillIndex = 0;
+  showCard();
+}
+
+// ==== статистика ====
+function computeDomainPercents(domain, levels) {
+  const result = {};
+  levels.forEach(lvl => {
+    const skills = domain.items.filter(i => i.level===lvl);
+    if (skills.length===0) { result[lvl] = null; return; }
+    const answered = skills.map(i => {
+      const a = domain.answers.find(x => x.text===i.text && x.level===i.level);
+      return a ? a.answer : null;
+    });
+    const yesCount = answered.filter(a=>a==="yes").length;
+    result[lvl] = Math.round(100*yesCount/skills.length);
+  });
+  return result;
+}
+
+// ==== вывод результатов ====
+function renderResults() {
+  let html = "";
+  for (const d of state.domains) {
+    const perc = computeDomainPercents(d, state.levels);
+    html += `<h4>${d.name}</h4>`;
+    for (const lvl of state.levels) {
+      if (perc[lvl]!=null) {
+        html += `<div>${lvl}: ${perc[lvl]}%</div>`;
+      }
+    }
+  }
+  document.getElementById("results").innerHTML = html;
+  renderCompetencyTable();
+}
+
+// ==== таблица компетенций ====
+function renderCompetencyTable() {
+  let html = "<table><tr><th>Domain</th><th>Competency</th><th>Level</th><th>Skill</th><th>Answer</th></tr>";
+  for (const d of state.domains) {
+    for (const it of d.items) {
+      const ans = d.answers.find(a=>a.text===it.text && a.level===it.level);
+      const cls = ans ? ans.answer : "";
+      html += `<tr>
+        <td>${d.name}</td>
+        <td>${it.compId}</td>
+        <td>${it.level}</td>
+        <td>${it.text}</td>
+        <td class="${cls}">${ans?ans.answer:""}</td>
+      </tr>`;
+    }
+  }
+  html += "</table>";
+  document.getElementById("competency-table").innerHTML = html;
+}
+
+// ==== экспорт ====
+function exportAsText() {
+  let out = '';
+  for (const d of state.domains) {
+    const perc = computeDomainPercents(d, state.levels);
+    out += `Домен: ${d.name}\n`;
+    state.levels.forEach(lvl=>{
+      if (perc[lvl]!=null) out += `  ${lvl}: ${perc[lvl]}%\n`;
+    });
+    out += '\n';
+  }
+  return out.trim();
+}
+
+function exportAsCSV() {
+  const rows = [["domain","competency_id","level","skill","answer"]];
+  for (const d of state.domains) {
+    d.items.forEach(it=>{
+      const ans = d.answers.find(a=>a.text===it.text && a.level===it.level);
+      rows.push([d.name,it.compId,it.level,'"'+it.text.replace(/"/g,'""')+'"', ans?ans.answer:""]);
+    });
+  }
+  return rows.map(r=>r.join(",")).join("\n");
+}
+
+document.getElementById("btn-export").addEventListener("click", async ()=>{
+  const txt = exportAsText();
+  try {
+    await navigator.clipboard.writeText(txt);
+    alert("Скопировано:\n\n"+txt);
+  } catch(e) {
+    alert("Скопируйте:\n\n"+txt);
+  }
+});
+
+document.getElementById("btn-csv").addEventListener("click", ()=>{
+  const csv = exportAsCSV();
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download="results.csv";
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+});
+
+document.getElementById("btn-print").addEventListener("click", ()=>{
+  const txt = exportAsText();
+  const win = window.open("", "PRINT", "height=600,width=800");
+  win.document.write('<pre>'+txt+'</pre>');
+  win.document.close(); win.focus(); win.print();
+});
+
+// ==== запуск ====
+prepare();
+showCard();
+</script>
+
 </body>
 </html>
