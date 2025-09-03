@@ -4,19 +4,159 @@
   <meta charset="UTF-8">
   <title>Матрица компетенций</title>
   <style>
-    body { font-family: sans-serif; display: flex; margin: 0; height: 100vh; }
-    main { flex: 1; display: flex; justify-content: center; align-items: center; }
-    aside { width: 350px; border-left: 1px solid #ccc; padding: 12px; overflow:auto }
-    .card { width: 300px; padding: 20px; border: 1px solid #ccc; border-radius: 12px;
-            background: white; box-shadow: 0 4px 6px rgba(0,0,0,.1); text-align:center; }
+    body { font-family: sans-serif; display: flex; margin: 0; height: 100vh; overflow: hidden; }
+    main { flex: 1; display: flex; justify-content: center; align-items: center; overflow: hidden; min-width: 300px; }
+    
+    /* Resizable sidebar */
+    aside { 
+      width: 350px; 
+      min-width: 300px; 
+      max-width: 60vw; 
+      border-left: 1px solid #ccc; 
+      padding: 12px; 
+      overflow-y: auto; 
+      overflow-x: hidden;
+      position: relative;
+      background: #f9f9f9;
+    }
+    
+    /* Resize handle */
+    .resize-handle {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 8px;
+      height: 100%;
+      background: transparent;
+      cursor: ew-resize;
+      z-index: 1000;
+      border-left: 3px solid transparent;
+      transition: border-color 0.2s ease;
+    }
+    
+    .resize-handle:hover {
+      border-left-color: #999;
+    }
+    
+    .resize-handle.dragging {
+      border-left-color: #666;
+    }
+    
+    /* Card container for stacking */
+    #card-container { position: relative; width: 300px; height: 450px; }
+    
+    /* Card styling with animation support */
+    .card { 
+      position: absolute;
+      width: 300px; 
+      padding: 20px; 
+      border: 1px solid #ccc; 
+      border-radius: 12px;
+      background: white; 
+      box-shadow: 0 4px 6px rgba(0,0,0,.1); 
+      text-align: center;
+      cursor: grab;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      user-select: none;
+      touch-action: none;
+    }
+    
+    .card:active { cursor: grabbing; }
+    
+    /* Swipe animations */
+    .card.swiping { transition: none; }
+    .card.swipe-left { 
+      transform: translateX(-100vw) rotate(-30deg); 
+      opacity: 0;
+    }
+    .card.swipe-right { 
+      transform: translateX(100vw) rotate(30deg); 
+      opacity: 0;
+    }
+    .card.swipe-up { 
+      transform: translateY(-100vh) rotate(15deg); 
+      opacity: 0;
+    }
+    
+    /* Swipe hint indicators */
+    .swipe-hint {
+      position: absolute;
+      top: 50%;
+      font-size: 48px;
+      font-weight: bold;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .swipe-hint.left { left: 20px; color: #f44336; transform: translateY(-50%); }
+    .swipe-hint.right { right: 20px; color: #4caf50; transform: translateY(-50%); }
+    .swipe-hint.up { top: 20px; left: 50%; color: #2196f3; transform: translateX(-50%); }
+    
+    /* Controls hint */
+    .controls-hint {
+      position: absolute;
+      bottom: -40px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      color: #666;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 5px 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      white-space: nowrap;
+    }
+    
     .row { display: flex; justify-content: center; margin-top: 12px; gap: 8px; flex-wrap:wrap; }
     button { padding: 6px 12px; border-radius: 6px; cursor: pointer; border: none; }
     .btn-yes { background: #4caf50; color:white }
     .btn-no { background: #f44336; color:white }
     .btn-unk { background: #2196f3; color:white }
     .badge { background: #eee; border-radius: 8px; padding: 2px 8px; font-size: 12px; }
-    table { border-collapse: collapse; margin-top: 20px; width: 100%; font-size: 12px; }
-    th, td { border: 1px solid #ccc; padding: 4px; text-align: center; }
+    
+    /* Sidebar content styling */
+    .card { margin-bottom: 10px; }
+    
+    /* Table container for better scrolling */
+    #competency-table {
+      max-height: 400px;
+      overflow-y: auto;
+      overflow-x: auto;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+    
+    table { 
+      border-collapse: collapse; 
+      width: 100%; 
+      font-size: 11px; 
+      min-width: 500px;
+    }
+    
+    th, td { 
+      border: 1px solid #ccc; 
+      padding: 6px 4px; 
+      text-align: left;
+      word-wrap: break-word;
+      max-width: 150px;
+    }
+    
+    th {
+      background: #f5f5f5;
+      font-weight: bold;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    
+    td:nth-child(4) { /* Skill column */
+      max-width: 200px;
+      word-break: break-word;
+    }
+    
     .yes { background: #c8e6c9; }  /* зелёный */
     .no { background: #ffcdd2; }   /* красный */
     .unknown { background: #bbdefb; } /* синий */
@@ -29,7 +169,24 @@
 </main>
 
 <aside>
+  <div class="resize-handle"></div>
   <div class="card">
+    <div class="row"><div class="badge">Загрузка данных</div></div>
+    <div style="margin: 10px 0;">
+      <label for="yaml-file">Загрузить YAML файл:</label>
+      <input type="file" id="yaml-file" accept=".yaml,.yml" style="width: 100%; margin: 5px 0;">
+    </div>
+    <div style="margin: 10px 0;">
+      <label for="yaml-text">Или введите YAML текст:</label>
+      <textarea id="yaml-text" placeholder="Введите YAML здесь..." style="width: 100%; height: 100px; margin: 5px 0; resize: vertical;"></textarea>
+    </div>
+    <div class="row">
+      <button id="btn-load-yaml" style="background: #ff9800; color: white;">Загрузить</button>
+      <button id="btn-reset" style="background: #9e9e9e; color: white;">Сброс</button>
+    </div>
+  </div>
+  
+  <div class="card" style="margin-top: 10px;">
     <div class="row"><div class="badge">Результаты</div></div>
     <div id="results">Пока пусто.</div>
     <div class="row" style="margin-top:12px;">
@@ -44,7 +201,7 @@
 <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
 <script>
 // ==== пример YAML ====
-const yamlText = `
+const defaultYamlText = `
 domains:
   - name: Hard skills
     competencies:
@@ -79,8 +236,9 @@ domains:
               - Can argue technical decisions
 `;
 
-// ==== парсинг YAML ====
-const data = jsyaml.load(yamlText);
+// ==== глобальные переменные ====
+let data = null;
+let currentYamlText = defaultYamlText;
 
 // ==== состояние ====
 const state = {
@@ -92,8 +250,35 @@ const state = {
   levels: []
 };
 
+// ==== загрузка и парсинг YAML ====
+function loadYaml(yamlText) {
+  try {
+    data = jsyaml.load(yamlText);
+    if (!data || !data.domains) {
+      throw new Error("Неверный формат YAML: отсутствует поле 'domains'");
+    }
+    currentYamlText = yamlText;
+    prepare();
+    showCard();
+    return true;
+  } catch (error) {
+    alert("Ошибка при загрузке YAML:\n" + error.message);
+    return false;
+  }
+}
+
+function resetToDefault() {
+  loadYaml(defaultYamlText);
+  document.getElementById('yaml-text').value = '';
+  document.getElementById('yaml-file').value = '';
+}
+
 // ==== подготовка структуры ====
 function prepare() {
+  // сброс состояния
+  state.currentDomain = 0;
+  state.currentSkillIndex = 0;
+  
   // соберём список уровней
   const levelSet = new Set();
   data.domains.forEach(d => {
@@ -130,7 +315,11 @@ function showCard() {
   if (!item) { nextDomain(); return; }
 
   document.getElementById("card-container").innerHTML = `
-    <div class="card">
+    <div class="card" id="current-card">
+      <div class="swipe-hint left">✗</div>
+      <div class="swipe-hint right">✓</div>
+      <div class="swipe-hint up">?</div>
+      
       <div class="badge">${d.name} – ${item.level}</div>
       <p>${item.text}</p>
       <div class="row">
@@ -138,8 +327,16 @@ function showCard() {
         <button class="btn-unk" onclick="answer('unknown')">Не знаю</button>
         <button class="btn-yes" onclick="answer('yes')">Да</button>
       </div>
+      
+      <div class="controls-hint">
+        ← Нет | ↑ Не знаю | → Да<br>
+        A/← | W/↑ | D/→ | Свайп
+      </div>
     </div>
   `;
+  
+  // Add event listeners for the new card
+  setupCardEventListeners();
 }
 
 function answer(ans) {
@@ -148,6 +345,127 @@ function answer(ans) {
   d.answers.push({ ...item, answer: ans });
   state.currentSkillIndex++;
   showCard();
+}
+
+// ==== анимация свайпа ====
+function animateSwipe(direction, callback) {
+  const card = document.getElementById('current-card');
+  if (!card) return;
+  
+  // Add appropriate swipe class
+  card.classList.add(`swipe-${direction}`);
+  
+  // Execute callback after animation
+  setTimeout(() => {
+    if (callback) callback();
+  }, 300);
+}
+
+function swipeAnswer(ans) {
+  const direction = ans === 'yes' ? 'right' : ans === 'no' ? 'left' : 'up';
+  animateSwipe(direction, () => answer(ans));
+}
+
+// ==== обработчики событий карточки ====
+function setupCardEventListeners() {
+  const card = document.getElementById('current-card');
+  if (!card) return;
+  
+  // Touch/Mouse events for swipe
+  let startX = 0, startY = 0, currentX = 0, currentY = 0;
+  let isDragging = false;
+  
+  // Mouse events
+  card.addEventListener('mousedown', startDrag);
+  card.addEventListener('mousemove', drag);
+  card.addEventListener('mouseup', endDrag);
+  card.addEventListener('mouseleave', endDrag);
+  
+  // Touch events
+  card.addEventListener('touchstart', startDrag);
+  card.addEventListener('touchmove', drag);
+  card.addEventListener('touchend', endDrag);
+  
+  function startDrag(e) {
+    isDragging = true;
+    card.classList.add('swiping');
+    
+    const clientX = e.type === 'mousedown' ? e.clientX : e.touches[0].clientX;
+    const clientY = e.type === 'mousedown' ? e.clientY : e.touches[0].clientY;
+    
+    startX = clientX;
+    startY = clientY;
+    currentX = clientX;
+    currentY = clientY;
+    
+    if (e.type === 'touchstart') {
+      e.preventDefault();
+    }
+  }
+  
+  function drag(e) {
+    if (!isDragging) return;
+    
+    const clientX = e.type === 'mousemove' ? e.clientX : e.touches[0].clientX;
+    const clientY = e.type === 'mousemove' ? e.clientY : e.touches[0].clientY;
+    
+    currentX = clientX;
+    currentY = clientY;
+    
+    const deltaX = currentX - startX;
+    const deltaY = currentY - startY;
+    
+    // Apply transform
+    const rotation = deltaX * 0.1;
+    card.style.transform = `translate(${deltaX}px, ${deltaY}px) rotate(${rotation}deg)`;
+    
+    // Show appropriate hint
+    const hints = card.querySelectorAll('.swipe-hint');
+    hints.forEach(hint => hint.style.opacity = '0');
+    
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      if (deltaX > 50) {
+        card.querySelector('.swipe-hint.right').style.opacity = Math.min(1, deltaX / 150);
+      } else if (deltaX < -50) {
+        card.querySelector('.swipe-hint.left').style.opacity = Math.min(1, Math.abs(deltaX) / 150);
+      }
+    } else if (deltaY < -50) {
+      card.querySelector('.swipe-hint.up').style.opacity = Math.min(1, Math.abs(deltaY) / 150);
+    }
+    
+    e.preventDefault();
+  }
+  
+  function endDrag(e) {
+    if (!isDragging) return;
+    isDragging = false;
+    
+    card.classList.remove('swiping');
+    
+    const deltaX = currentX - startX;
+    const deltaY = currentY - startY;
+    
+    // Determine swipe direction and threshold
+    const threshold = 100;
+    
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      if (deltaX > threshold) {
+        swipeAnswer('yes');
+        return;
+      } else if (deltaX < -threshold) {
+        swipeAnswer('no');
+        return;
+      }
+    } else if (deltaY < -threshold) {
+      swipeAnswer('unknown');
+      return;
+    }
+    
+    // Reset card position if no swipe detected
+    card.style.transform = '';
+    const hints = card.querySelectorAll('.swipe-hint');
+    hints.forEach(hint => hint.style.opacity = '0');
+  }
 }
 
 function nextDomain() {
@@ -260,9 +578,153 @@ document.getElementById("btn-print").addEventListener("click", ()=>{
   win.document.close(); win.focus(); win.print();
 });
 
+// ==== обработчики для загрузки YAML ====
+document.getElementById("btn-load-yaml").addEventListener("click", ()=>{
+  const textArea = document.getElementById('yaml-text');
+  const fileInput = document.getElementById('yaml-file');
+  
+  if (textArea.value.trim()) {
+    // Загружаем из текстового поля
+    loadYaml(textArea.value.trim());
+  } else if (fileInput.files.length > 0) {
+    // Загружаем из файла
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const content = e.target.result;
+      if (loadYaml(content)) {
+        textArea.value = content; // Показываем содержимое в текстовом поле
+      }
+    };
+    reader.readAsText(file);
+  } else {
+    alert("Пожалуйста, выберите файл или введите YAML текст");
+  }
+});
+
+document.getElementById("btn-reset").addEventListener("click", ()=>{
+  if (confirm("Сбросить к настройкам по умолчанию? Все текущие результаты будут потеряны.")) {
+    resetToDefault();
+  }
+});
+
+// Обработчик изменения файла
+document.getElementById("yaml-file").addEventListener("change", function() {
+  if (this.files.length > 0) {
+    document.getElementById('yaml-text').value = ''; // Очищаем текстовое поле
+  }
+});
+
+// Обработчик изменения текстового поля
+document.getElementById("yaml-text").addEventListener("input", function() {
+  if (this.value.trim()) {
+    document.getElementById('yaml-file').value = ''; // Очищаем выбор файла
+  }
+});
+
+// ==== обработчики клавиатуры ====
+document.addEventListener('keydown', function(e) {
+  // Игнорируем если фокус на input элементах
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+    return;
+  }
+  
+  switch(e.key) {
+    // Arrow keys
+    case 'ArrowLeft':
+      e.preventDefault();
+      swipeAnswer('no');
+      break;
+    case 'ArrowRight':
+      e.preventDefault();
+      swipeAnswer('yes');
+      break;
+    case 'ArrowUp':
+      e.preventDefault();
+      swipeAnswer('unknown');
+      break;
+    
+    // WASD keys
+    case 'a':
+    case 'A':
+      e.preventDefault();
+      swipeAnswer('no');
+      break;
+    case 'd':
+    case 'D':
+      e.preventDefault();
+      swipeAnswer('yes');
+      break;
+    case 'w':
+    case 'W':
+      e.preventDefault();
+      swipeAnswer('unknown');
+      break;
+      
+    // Space and Enter for "yes"
+    case ' ':
+    case 'Enter':
+      e.preventDefault();
+      swipeAnswer('yes');
+      break;
+  }
+});
+
+// ==== ресайзер боковой панели ====
+function setupSidebarResizer() {
+  const resizeHandle = document.querySelector('.resize-handle');
+  const sidebar = document.querySelector('aside');
+  const main = document.querySelector('main');
+  
+  let isResizing = false;
+  let startX = 0;
+  let startWidth = 0;
+  
+  resizeHandle.addEventListener('mousedown', startResize);
+  
+  function startResize(e) {
+    isResizing = true;
+    startX = e.clientX;
+    startWidth = parseInt(window.getComputedStyle(sidebar).width, 10);
+    
+    resizeHandle.classList.add('dragging');
+    document.body.style.cursor = 'ew-resize';
+    document.body.style.userSelect = 'none';
+    
+    document.addEventListener('mousemove', doResize);
+    document.addEventListener('mouseup', stopResize);
+    
+    e.preventDefault();
+  }
+  
+  function doResize(e) {
+    if (!isResizing) return;
+    
+    const deltaX = e.clientX - startX;
+    const newWidth = startWidth + deltaX;
+    
+    // Ограничения по ширине
+    const minWidth = 300;
+    const maxWidth = window.innerWidth * 0.6;
+    const clampedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+    
+    sidebar.style.width = clampedWidth + 'px';
+  }
+  
+  function stopResize() {
+    isResizing = false;
+    resizeHandle.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    
+    document.removeEventListener('mousemove', doResize);
+    document.removeEventListener('mouseup', stopResize);
+  }
+}
+
 // ==== запуск ====
-prepare();
-showCard();
+loadYaml(defaultYamlText);
+setupSidebarResizer();
 </script>
 
 </body>

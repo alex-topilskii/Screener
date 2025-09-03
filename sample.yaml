@@ -1,0 +1,32 @@
+domains:
+  - name: Hard skills
+    competencies:
+      - id: android_basics
+        levels:
+          junior:
+            skills:
+              - Knowledge in Android SDK
+              - Kotlin
+              - Constraint Layout
+          middle:
+            skills:
+              - Good knowledge in Android SDK
+              - Kotlin
+              - Constraint Layout
+              - Coroutines
+              - MVI
+              - MVVM
+          senior:
+            skills:
+              - Project architecture design
+              - Code review
+  - name: Soft skills
+    competencies:
+      - id: communication
+        levels:
+          junior:
+            skills:
+              - Clear verbal communication
+          middle:
+            skills:
+              - Can argue technical decisions
